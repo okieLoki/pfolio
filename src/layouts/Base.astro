@@ -1,0 +1,73 @@
+---
+import '../styles/global.css';
+import { site } from '../data/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  bare?: boolean; // the game page: no boxed header
+}
+
+const { title, description = site.description, bare = false } = Astro.props;
+const pageTitle = title ? `${title} — ${site.shortName}` : site.title;
+const path = Astro.url.pathname;
+const current = (href: string) => (href === '/' ? path === '/' : path.startsWith(href)) ? 'page' : undefined;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  {!bare && (
+    <script is:inline>
+      // Reading mode: 'pixel' (default) or 'clean'. Applied before paint.
+      try { var t = localStorage.getItem('reading'); if (t === 'clean') document.documentElement.dataset.theme = 'clean'; } catch (e) {}
+    </script>
+  )}
+  <title>{pageTitle}</title>
+</head>
+<body>
+  {!bare && (
+    <header class="top box wrap">
+      <a href="/" class="name">{site.name}</a>
+      <nav aria-label="Main">
+        <a href="/" aria-current={current('/')}>Town</a>
+        <a href="/writing" aria-current={current('/writing')}>Writing</a>
+        <a href="/about" aria-current={current('/about')}>About</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" title="Switch between pixel and clean reading modes">Aa</button>
+      </nav>
+    </header>
+  )}
+
+  <main class={bare ? undefined : 'wrap'}>
+    <slot />
+  </main>
+
+  {!bare && (
+    <>
+      <footer class="bottom box wrap">
+        <a href="/">Back to town</a>
+        <span>&copy; {new Date().getFullYear()} {site.name}</span>
+      </footer>
+      <script>
+        const btn = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        const sync = () => { if (btn) btn.textContent = root.dataset.theme === 'clean' ? 'Pixel' : 'Clean'; };
+        sync();
+        btn?.addEventListener('click', () => {
+          const next = root.dataset.theme === 'clean' ? 'pixel' : 'clean';
+          if (next === 'clean') root.dataset.theme = 'clean'; else delete root.dataset.theme;
+          try { localStorage.setItem('reading', next); } catch {}
+          sync();
+        });
+      </script>
+    </>
+  )}
+</body>
+</html>
