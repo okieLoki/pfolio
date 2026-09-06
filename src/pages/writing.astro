@@ -1,0 +1,30 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import PostRow from '../components/PostRow.astro';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const byYear = new Map<number, typeof posts>();
+for (const post of posts) {
+  const y = post.data.date.getFullYear();
+  byYear.set(y, [...(byYear.get(y) ?? []), post]);
+}
+---
+
+<Base title="Writing" description="Notes on building simple software.">
+  <div class="page-head box" style="padding: 1.25rem 1.5rem">
+    <h1>LIBRARY</h1>
+    <p>Notes, mostly about building things. {posts.length} so far. Pick one.</p>
+  </div>
+
+  {[...byYear.entries()].map(([year, group]) => (
+    <section class="year-group box">
+      <h2>{year}</h2>
+      <ul class="index">
+        {group.map((post) => <PostRow post={post} dateFormat={{ month: 'short', day: 'numeric' }} />)}
+      </ul>
+    </section>
+  ))}
+</Base>
