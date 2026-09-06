@@ -1,0 +1,18 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { formatDate } from '../lib/format';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+  dateFormat?: Intl.DateTimeFormatOptions;
+}
+const { post, dateFormat = { month: 'short', year: 'numeric' } } = Astro.props;
+---
+
+<li>
+  <a class="row" href={`/posts/${post.id}`}>
+    <span class="label">{post.data.title}</span>
+    <span class="leader" aria-hidden="true"></span>
+    <time class="meta" datetime={post.data.date.toISOString().slice(0, 10)}>{formatDate(post.data.date, dateFormat)}</time>
+  </a>
+</li>
