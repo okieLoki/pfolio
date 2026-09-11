@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { site, intro, now, work, projects, elsewhere } from '../data/site';
+import { formatDate } from '../lib/format';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const plain = (html: string) => html.replace(/<[^>]+>/g, '');
+
+const gameData = {
+  site: { name: site.name, shortName: site.shortName, location: site.location, timeZone: site.timeZone, email: site.email, headline: site.description, github: site.github, supabase: site.supabase },
+  intro: intro.map(plain),
+  now: now.map(plain),
+  work,
+  projects,
+  elsewhere,
+  posts: posts.map((p) => ({ id: p.id, title: p.data.title, date: formatDate(p.data.date, { month: 'short', year: 'numeric' }), excerpt: p.data.excerpt })),
+};
+---
+
+<Base bare>
+  <div class="game" id="game">
+    <canvas id="screen" aria-label={`${site.name}'s portfolio, playable as a small town you can walk around. Text links are below.`}></canvas>
+
+    <div class="touch" id="touch" aria-hidden="true">
+      <div class="dpad">
+        <button type="button" data-btn="up"></button>
+        <button type="button" data-btn="left"></button>
+        <span></span>
+        <button type="button" data-btn="right"></button>
+        <button type="button" data-btn="down"></button>
+      </div>
+      <div class="face">
+        <button type="button" data-btn="b">B</button>
+        <button type="button" data-btn="a">A</button>
+      </div>
+      <div class="meta">
+        <button type="button" data-btn="select">SELECT</button>
+        <button type="button" data-btn="start">START</button>
+      </div>
+    </div>
+
+    <div class="corner">
+      <button type="button" id="mute" class="chip" aria-pressed="false" title="Toggle sound" aria-label="Toggle sound">♪ ON</button>
+      <a class="chip" href="/writing" title="Text version of this site">TEXT</a>
+    </div>
+  </div>
+
+  <script type="application/json" id="game-data" set:html={JSON.stringify(gameData)} />
+  <script>
+    import { Game } from '../game/game';
+    import { MANIFEST } from '../game/assets';
+    import { MAPS } from '../game/world';
+
+    const data = JSON.parse(document.getElementById('game-data')!.textContent!);
+    const canvas = document.getElementById('screen') as HTMLCanvasElement;
+    const game = new Game(canvas, data, MANIFEST, MAPS, document.getElementById('touch'));
+    if (location.search.includes('scene=')) (window as any).__game = game; // test hook
+    game.start();
+
+    const mute = document.getElementById('mute')!;
+    const sync = () => { mute.setAttribute('aria-pressed', String(game.muted)); mute.textContent = game.muted ? '♪ OFF' : '♪ ON'; mute.title = game.muted ? 'Sound off' : 'Sound on'; };
+    mute.addEventListener('click', () => { game.toggleMute(); sync(); (mute as HTMLElement).blur(); });
+    window.addEventListener('game:mute', sync);
+    setTimeout(sync, 500);
+  </script>
+</Base>
