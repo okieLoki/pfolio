@@ -1,0 +1,56 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import { site, work, elsewhere } from '../data/site';
+---
+
+<Base title="About">
+  <section class="card box">
+    <h1>TRAINER CARD</h1>
+    <dl>
+      <dt>NAME</dt><dd>{site.name}</dd>
+      <dt>CLASS</dt><dd>{work[0]?.role}</dd>
+      <dt>GUILD</dt><dd><a href={work[0]?.href}>{work[0]?.org}</a></dd>
+      <dt>HOMETOWN</dt><dd>{site.location}</dd>
+      <dt>MOTTO</dt><dd>{site.description}</dd>
+    </dl>
+    <canvas id="avatar" width="38" height="38" aria-label="Pixel avatar"></canvas>
+  </section>
+
+  <Section label="Me">
+    <div class="prose">
+      <p>Hi, I'm {site.shortName}. I build things on the internet and occasionally write about them.</p>
+      <p>I'm interested in simple software, good typography, and the space where design and engineering meet. Most of what I make is an attempt to remove something rather than add it.</p>
+    </div>
+  </Section>
+
+  <Section label="This site">
+    <div class="prose">
+      <p>A small town you can walk around, built with <a href="https://astro.build">Astro</a> and a full-screen pixel canvas. Art, music and sound are from the wonderful CC0 <a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack">Ninja Adventure</a> pack by Pixel-boy &amp; AAA. No trackers, no analytics, no cookies.</p>
+      <p>If the game isn't your thing, every page is reachable by plain links, starting with <a href="/writing">Writing</a>.</p>
+    </div>
+  </Section>
+
+  <Section label="Contact">
+    <div class="prose">
+      <p>The best way to reach me is email: <a href={`mailto:${site.email}`}>{site.email}</a>.</p>
+    </div>
+    <ul class="kv" style="margin-top: 1rem">
+      {elsewhere.filter((e) => e.label !== 'Email').map((e) => (
+        <li><span class="k">{e.label}</span><a href={e.href}>{e.value}</a></li>
+      ))}
+    </ul>
+  </Section>
+
+  <script>
+    import { CHARACTERS } from '../game/assets/actors';
+    const face = CHARACTERS.boy.faceset!;
+    const c = document.getElementById('avatar') as HTMLCanvasElement;
+    c.width = face.w; c.height = face.h;
+    const g = c.getContext('2d')!;
+    g.imageSmoothingEnabled = false;
+    const img = new Image();
+    img.onload = () => g.drawImage(img, face.x, face.y, face.w, face.h, 0, 0, face.w, face.h);
+    img.src = face.sheet;
+  </script>
+</Base>
