@@ -23,7 +23,13 @@ const current = (href: string) => (href === '/' ? path === '/' : path.startsWith
   <meta property="og:title" content={pageTitle} />
   <meta property="og:description" content={description} />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#141b1b" />
+  <meta property="og:image" content="/icon-512.png" />
   {!bare && (
     <script is:inline>
       // Reading mode: 'pixel' (default) or 'clean'. Applied before paint.

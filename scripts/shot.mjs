@@ -2,6 +2,7 @@
 // Scripted screenshots of the running game via the installed Chrome.
 // usage: node scripts/shot.mjs <url> <out.png> [--size 1440x900] [--wait 1500]
 //        [--keys "ArrowRight*6,z,Enter"] [--gap 120] [--hold 0] [--mobile] [--fps]
+//        [--eval "js run in page after load (window.__game is set when ?scene= is used)"] [--after 500]
 // Keys are pressed in order; "Name*N" repeats; "~500" sleeps 500 ms; "+Name" holds a key down until "-Name".
 import puppeteer from 'puppeteer-core';
 
@@ -14,6 +15,7 @@ const wait = +opt('--wait', 1500);
 const gap = +opt('--gap', 120);
 const keys = opt('--keys', '');
 const mobile = has('--mobile');
+const evalJs = opt('--eval', '');
 
 const browser = await puppeteer.launch({
   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -28,6 +30,7 @@ await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 await new Promise((r) => setTimeout(r, wait));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+if (evalJs) { await page.evaluate(evalJs); await sleep(+opt('--after', 500)); }
 for (const tok of keys.split(',').map((s) => s.trim()).filter(Boolean)) {
   if (tok.startsWith('~')) { await sleep(+tok.slice(1)); continue; }
   if (tok.startsWith('+')) { await page.keyboard.down(tok.slice(1)); continue; }

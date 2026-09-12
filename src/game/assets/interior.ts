@@ -73,5 +73,9 @@ export const FURNITURE: Record<string, Prop> = {
   doorDark: P('Door', ELEM, 128, 192, 16, 32, 1, 1, false),
   windowLight: P('Window', ELEM, 96, 224, 16, 16, 1, 1, false),
   windowDark: P('Window', ELEM, 128, 224, 16, 16, 1, 1, false),
+  computer: P('Computer', '/game/props/computer.png', 0, 0, 16, 24, 1, 1, true, {
+    anim: { sheet: '/game/props/computer.png', x: 0, y: 0, w: 16, h: 24, frames: 2, fps: 1.6 },
+    light: { x: 8, y: -12, radius: 18, color: '#7be07a' },
+  }),
   lanternFloor: P('Floor lantern', ELEM, 224, 0, 16, 32, 1, 1, true, { light: { x: 8, y: -14, radius: 40, color: '#ffc27a' } }),
 };

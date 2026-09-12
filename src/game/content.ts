@@ -32,6 +32,8 @@ export interface GameApi {
   phaseLabel(): string;
   /** open the shared doodle wall */
   doodle(): Promise<void>;
+  /** sit at the office computer (a little shell); resolves when the user exits */
+  terminal(): Promise<void>;
   /** live weather, if it loaded */
   weather(): { weather: string; tempC: number; description: string } | null;
   /** latest GitHub repos, if they loaded */
@@ -215,6 +217,7 @@ export function buildContent(data: GameData) {
       case 'home:table': return about;
       case 'office:board': return async (g) => g.say(['SPRINT BOARD', 'TODO: 14   DOING: 3   DONE: 1', 'The "DONE" card is "make sprint board".']);
       case 'office:kettle': return async (g) => g.say(['The kettle is always on.', 'Tea count today: yes.']);
+      case 'office:pc': return async (g) => { g.sfx('confirm'); await g.terminal(); };
       case 'library:table': return async (g) => g.say(['A reading table with a warm lamp.', `${data.posts.length} notes live on these shelves. Walk up to one and press A.`]);
     }
     return null;

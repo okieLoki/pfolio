@@ -3,6 +3,7 @@
 
 import type { Anim } from '../assets/types';
 import type { Ctx } from '../core/gfx';
+import { makeCanvas } from '../core/gfx';
 
 export type ParticleKind = 'leaf' | 'dust' | 'firefly' | 'grass' | 'splash' | 'cloud' | 'spark' | 'rain' | 'snow';
 
@@ -13,6 +14,37 @@ export interface Particle {
   size: number;
   phase: number;
   anim?: Anim;
+  img?: HTMLCanvasElement;
+}
+
+/** Cloud shadows are chunky pixel blobs (1 cell = 4 world px) so they sit in the art instead of on it. */
+function cloudMask(): HTMLCanvasElement {
+  const cw = 36 + (Math.random() * 20) | 0, ch = 18 + (Math.random() * 6) | 0;
+  const [c, g] = makeCanvas(cw, ch);
+  g.fillStyle = '#000';
+  const blobs = 6 + (Math.random() * 4) | 0;
+  for (let i = 0; i < blobs; i++) {
+    const t = (i + 0.5) / blobs;
+    const cx = 6 + t * (cw - 12) + (Math.random() - 0.5) * 4;
+    const r = 3 + Math.random() * (ch / 2 - 5);            // always fits vertically
+    const cy = r + 1 + Math.random() * (ch - 2 * r - 2);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const dx = (x + 0.5 - cx) / 1.6, dy = y + 0.5 - cy;   // wider than tall
+      if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
+    }
+  }
+  // knock off a few convex corner pixels so the outline is not a clean union of ellipses
+  const data = g.getImageData(0, 0, cw, ch), d = data.data;
+  const at = (x: number, y: number) => x >= 0 && y >= 0 && x < cw && y < ch && d[(y * cw + x) * 4 + 3] > 0;
+  const kill: number[] = [];
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+    if (!at(x, y)) continue;
+    const empty = +!at(x - 1, y) + +!at(x + 1, y) + +!at(x, y - 1) + +!at(x, y + 1);
+    if (empty >= 2 && Math.random() < 0.6) kill.push((y * cw + x) * 4 + 3);
+  }
+  for (const i of kill) d[i] = 0;
+  g.putImageData(data, 0, 0);
+  return c;
 }
 
 export class Particles {
@@ -39,8 +71,11 @@ export class Particles {
   splash(x: number, y: number) {
     for (let i = 0; i < 6; i++) this.spawn({ kind: 'splash', x, y, vx: (Math.random() - 0.5) * 40, vy: -30 - Math.random() * 30, max: 0.5, size: 1 });
   }
+  private masks: HTMLCanvasElement[] = [];
   cloud(x: number, y: number) {
-    this.spawn({ kind: 'cloud', x, y, vx: 6 + Math.random() * 4, vy: 1.5, max: 120, size: 60 + Math.random() * 50 });
+    if (this.masks.length < 6) this.masks.push(cloudMask());
+    const img = this.masks[(Math.random() * this.masks.length) | 0];
+    this.spawn({ kind: 'cloud', x, y, vx: 6 + Math.random() * 4, vy: 1.5, max: 120, size: 3 + Math.random() * 2, img });
   }
   rain(x: number, y: number, snow = false) {
     if (snow) this.spawn({ kind: 'snow', x, y, vx: -6, vy: 18 + Math.random() * 10, max: 6, size: 1 });
@@ -79,15 +114,14 @@ export class Particles {
   drawShadows(g: Ctx, cam: { x: number; y: number }, w: number, h: number) {
     for (const p of this.list) {
       if (p.kind !== 'cloud') continue;
-      const x = p.x - cam.x, y = p.y - cam.y;
-      if (x < -p.size * 2 || y < -p.size || x > w + p.size * 2 || y > h + p.size) continue;
+      const img = p.img!, sw = img.width * p.size, sh = img.height * p.size;
+      // snap to the cell grid so the blob scrolls in whole pixels
+      const x = Math.floor((p.x - cam.x) / p.size) * p.size, y = Math.floor((p.y - cam.y) / p.size) * p.size;
+      if (x < -sw || y < -sh || x > w || y > h) continue;
       const fade = Math.min(1, p.life / 6, (p.max - p.life) / 6);
-      g.globalAlpha = 0.16 * fade;
-      g.fillStyle = '#233';
-      g.beginPath();
-      g.ellipse(x, y, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
-      g.ellipse(x + p.size * 0.7, y + p.size * 0.2, p.size * 0.7, p.size * 0.4, 0, 0, Math.PI * 2);
-      g.fill();
+      g.globalAlpha = 0.13 * fade;
+      g.imageSmoothingEnabled = false;
+      g.drawImage(img, x, y, sw, sh);
       g.globalAlpha = 1;
     }
   }

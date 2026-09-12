@@ -19,6 +19,7 @@ import { AMBIENT, PHASES, autoPhase, pinnedPhase, pinPhase, type Phase } from '.
 import { buildContent, MONSTER_NAMES, TRIVIA, JOKE_MOVES, type GameData, type GameApi, type Speaker, type Script } from './content';
 import { fetchWeather, fetchRepos, type LiveWeather, type Repo } from './live';
 import { Board, LocalStore, SupabaseStore } from './board';
+import { Terminal } from './terminal';
 
 export interface Manifest {
   terrains: Record<string, Terrain>;
@@ -92,6 +93,7 @@ export class Game {
   private live: { weather: LiveWeather | null; repos: Repo[] } = { weather: null, repos: [] };
   private rainT = 0;
   private board!: Board;
+  private terminal!: Terminal;
   private boardResolve: (() => void) | null = null;
 
   private maps: Record<string, WorldDef>;
@@ -156,6 +158,7 @@ export class Game {
     if (scene === 'menu') this.run(this.content.startMenu);
     if (scene === 'library') this.run(this.content.writing);
     if (scene === 'doodle') this.run(async (g) => g.doodle());
+    if (scene === 'terminal') this.run(async (g) => g.terminal());
     if (scene === 'talk') this.run(async (g) => g.say(['A wild TEST appeared! This is a dialogue box, with a full three lines of text to check wrapping.'], { name: 'Tester' }));
     const ff = +(params.get('t') ?? 0);
     for (let i = 0; i < ff; i++) this.update(1 / 60);
@@ -304,6 +307,7 @@ export class Game {
     isMuted: () => this.audio.muted,
     bugsFixed: () => this.bugsFixed(),
     doodle: () => new Promise<void>((resolve) => { this.boardResolve = resolve; this.board.show(); }),
+    terminal: () => (this.terminal ??= new Terminal(this.api)).show(),
     weather: () => this.live.weather,
     repos: () => this.live.repos,
     phaseLabel: () => AMBIENT[this.phase].label,
@@ -321,6 +325,7 @@ export class Game {
     const toGame = (e: PointerEvent): [number, number] => [e.clientX / this.scale, e.clientY / this.scale];
     this.canvas.addEventListener('pointerdown', (e) => {
       this.input.onInteraction?.(true);
+      if (this.terminal?.open) { e.preventDefault(); this.terminal.pointer(...toGame(e)); return; }
       if (!this.board.open) return;
       e.preventDefault(); this.canvas.setPointerCapture(e.pointerId);
       this.board.pointerDown(...toGame(e));
@@ -347,6 +352,7 @@ export class Game {
     }
 
     if (this.state === 'title') this.updateTitle(dt);
+    else if (this.terminal?.open) this.terminal.update(dt);
     else if (this.board.open) {
       if (this.board.update(this.input)) { this.board.hide(); this.audio.play('cancel'); const r = this.boardResolve; this.boardResolve = null; r?.(); }
     } else {
@@ -699,6 +705,7 @@ export class Game {
       const box = this.uiArt.dialogBoxSimple ?? this.uiArt.dialogBox;
       this.board.draw(g, this.vw, this.vh, this.text, (x, y, w, h) => drawNineSlice(g, this.images.get(box.region.sheet)!, box, x, y, w, h));
     }
+    if (this.terminal?.open) this.terminal.draw(g, this.vw, this.vh, this.text);
 
     if (this.flash > 0 && Math.floor(this.flash * 12) % 2 === 0) { g.fillStyle = '#fff'; g.fillRect(0, 0, this.vw, this.vh); }
     if (this.fade.alpha > 0) { g.fillStyle = `rgba(6,6,14,${this.fade.alpha})`; g.fillRect(0, 0, this.vw, this.vh); }

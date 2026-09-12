@@ -22,25 +22,36 @@ export class AudioBus {
     try { this.muted = localStorage.getItem('muted') === '1'; } catch {}
   }
 
-  /** Call from a user gesture. */
+  /** Call synchronously from a user gesture (iOS only honours play() inside the gesture's own call stack). */
   unlock() {
     if (this.unlocked) return;
     try {
       this.ctx ??= new (window.AudioContext || (window as any).webkitAudioContext)();
       const ctx = this.ctx;
-      ctx.resume().then(() => {
-        if (ctx.state !== 'running') return; // not a real user gesture (e.g. gamepad) — try again next time
-        this.unlocked = true;
-        if (this.current) this.current.el.play().catch(() => {});
-      }).catch(() => {});
+      ctx.resume().then(() => { if (ctx.state === 'running' && !this.current) this.unlocked = true; }).catch(() => {});
     } catch { this.ctx = null; }
+    const el = this.current?.el;
+    if (el) {
+      const p = el.play();
+      // play() resolving is the only reliable signal on mobile; a gamepad "gesture" gets rejected and we retry later
+      if (p) p.then(() => { this.unlocked = true; }).catch(() => {});
+    }
   }
 
   toggleMute() {
     this.muted = !this.muted;
     try { localStorage.setItem('muted', this.muted ? '1' : '0'); } catch {}
-    if (this.current) this.current.el.volume = this.muted ? 0 : this.current.target;
+    this.applyMute();
+    if (!this.muted) this.unlock(); // the toggle itself is a gesture — start playback if it never got unlocked
     return this.muted;
+  }
+
+  /** iOS ignores HTMLMediaElement.volume, so mute via the `muted` flag as well. */
+  private applyMute() {
+    const cur = this.current;
+    if (!cur) return;
+    cur.el.muted = this.muted;
+    if (!this.fading.has(cur.el)) cur.el.volume = this.muted ? 0 : cur.target;
   }
 
   private musicUrl(d: MusicDef) { return canOgg && d.ogg ? d.ogg : canM4a ? d.m4a : d.ogg ?? d.m4a; }
@@ -55,8 +66,10 @@ export class AudioBus {
     el.preload = 'auto';
     const target = def.volume * this.musicVolume;
     el.volume = 0;
+    el.muted = this.muted;
     this.current = { el, key, target };
-    if (this.unlocked) el.play().catch(() => {});
+    // a fresh element can be refused outside a gesture (iOS); fall back to re-unlocking on the next tap
+    if (this.unlocked) el.play().catch(() => { this.unlocked = false; });
     this.fade(el, this.muted ? 0 : target, fadeMs);
     if (prev) this.fade(prev.el, 0, fadeMs, () => { prev.el.pause(); prev.el.src = ''; });
   }

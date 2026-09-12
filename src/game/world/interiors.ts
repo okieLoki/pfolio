@@ -72,8 +72,9 @@ export const OFFICE = room({
     { name: 'deskSmall', x: 3, y: 6, id: 'desk:3' }, { name: 'chairSmall', x: 3, y: 7 },
     { name: 'deskSmall', x: 11, y: 6, id: 'desk:4' }, { name: 'chairSmall', x: 11, y: 7 },
     { name: 'bookshelfEmpty', x: 13, y: 1 }, { name: 'cabinetBooksA', x: 1, y: 1 }, { name: 'cabinetBooksB', x: 2, y: 1 },
-    { name: 'tableLow', x: 6, y: 8, id: 'office:kettle' }, { name: 'kettleGrey', x: 7, y: 7 },
-    { name: 'plantPotTall', x: 14, y: 8 }, { name: 'plantPotTall', x: 1, y: 8 },
+    { name: 'computer', x: 9, y: 1, id: 'office:pc' },
+    { name: 'tableLow', x: 12, y: 8, id: 'office:kettle' }, { name: 'kettleGrey', x: 13, y: 7 },
+    { name: 'plantPotTall', x: 14, y: 6 }, { name: 'plantPotTall', x: 1, y: 8 },
     { name: 'lanternFloor', x: 14, y: 5 }, { name: 'lanternFloor', x: 1, y: 5 },
   ],
   npcs: [
