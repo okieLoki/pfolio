@@ -794,7 +794,7 @@ export class Game {
     const subLines = this.text.wrap(this.data.site.headline.toUpperCase(), vw - 24);
     subLines.forEach((line, i) => this.text.draw(g, line, ((vw - this.text.width(line)) / 2) | 0, cy + 22 + i * this.text.lineHeight, { color: '#fff7ea', shadow: 'rgba(0,0,0,0.5)' }));
     if (Math.floor(this.time * 1.6) % 2 === 0) {
-      const t = matchMedia('(pointer: coarse)').matches ? 'TAP START' : 'PRESS ENTER';
+      const t = matchMedia('(pointer: coarse)').matches ? 'TAP A TO START' : 'PRESS ENTER';
       this.text.draw(g, t, ((vw - this.text.width(t)) / 2) | 0, (vh * 0.72) | 0, { color: '#fff7ea', shadow: 'rgba(0,0,0,0.5)' });
     }
   }
