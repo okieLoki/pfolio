@@ -1,0 +1,74 @@
+---
+// Dev-only: renders the whole town to one canvas with a tile grid and labels.
+// Open /dev/map?scale=2&grid=1&labels=1 and screenshot it.
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>map viewer</title>
+  <style>
+    body { margin: 0; background: #222; }
+    canvas { display: block; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script>
+    import { MANIFEST } from '../../game/assets';
+    import { pickTown } from '../../game/world';
+    const TOWN = pickTown();
+    import { World, TILE } from '../../game/world/world';
+    import { loadImages, collectUrls } from '../../game/core/loader';
+
+    const params = new URLSearchParams(location.search);
+    const scale = +(params.get('scale') ?? 2);
+    const grid = params.get('grid') !== '0';
+    const labels = params.get('labels') !== '0';
+
+    (async () => {
+      const images = await loadImages(collectUrls(MANIFEST));
+      const world = new World(TOWN, { images, terrains: MANIFEST.terrains, props: MANIFEST.props, houses: MANIFEST.houses });
+      const W = world.w * TILE, H = world.h * TILE;
+      const c = document.getElementById('c') as HTMLCanvasElement;
+      c.width = W * scale; c.height = H * scale;
+      const g = c.getContext('2d')!;
+      g.imageSmoothingEnabled = false;
+      g.scale(scale, scale);
+      g.drawImage(world.ground, 0, 0);
+      for (const s of world.sparkles) g.drawImage(images.get(s.anim.sheet)!, s.anim.x, s.anim.y, s.anim.w, s.anim.h, s.x, s.y, s.anim.w, s.anim.h);
+      for (const p of world.props) world.drawProp(g, p, 0);
+      // actors
+      for (const n of TOWN.npcs) {
+        const sheet = (n.kind === 'animal' ? MANIFEST.animals[n.char] : MANIFEST.characters[n.char]) ?? MANIFEST.characters[n.char] ?? MANIFEST.animals[n.char];
+        if (!sheet) continue;
+        const f = sheet.walk.down[0];
+        g.drawImage(images.get(sheet.sheet)!, f.x, f.y, sheet.frameW, sheet.frameH, n.x * TILE + 8 - sheet.feet.x, n.y * TILE + 16 - sheet.feet.y, sheet.frameW, sheet.frameH);
+      }
+      const ps = MANIFEST.characters.boy;
+      const pf = ps.walk.down[0];
+      g.drawImage(images.get(ps.sheet)!, pf.x, pf.y, 16, 16, TOWN.spawn.x * TILE, TOWN.spawn.y * TILE, 16, 16);
+
+      if (grid) {
+        g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 1 / scale;
+        for (let x = 0; x <= world.w; x++) { g.beginPath(); g.moveTo(x * TILE, 0); g.lineTo(x * TILE, H); g.stroke(); }
+        for (let y = 0; y <= world.h; y++) { g.beginPath(); g.moveTo(0, y * TILE); g.lineTo(W, y * TILE); g.stroke(); }
+        // solid overlay
+        g.fillStyle = 'rgba(255,0,0,0.18)';
+        for (let y = 0; y < world.h; y++) for (let x = 0; x < world.w; x++) if (world.isSolid(x, y)) g.fillRect(x * TILE, y * TILE, TILE, TILE);
+        // interactables
+        g.fillStyle = 'rgba(0,120,255,0.35)';
+        for (const key of world.interact.keys()) { const [x, y] = key.split(',').map(Number); g.fillRect(x * TILE + 4, y * TILE + 4, 8, 8); }
+      }
+      if (labels) {
+        g.font = `${8 / scale * 2}px monospace`; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2 / scale;
+        for (let x = 0; x < world.w; x += 4) for (let y = 0; y < world.h; y += 4) { const t = `${x},${y}`; g.strokeText(t, x * TILE + 1, y * TILE + 7); g.fillText(t, x * TILE + 1, y * TILE + 7); }
+        for (const h of TOWN.houses) { g.strokeText(h.id, h.x * TILE, h.y * TILE - 2); g.fillText(h.id, h.x * TILE, h.y * TILE - 2); }
+        for (const n of TOWN.npcs) { g.strokeText(n.id, n.x * TILE, n.y * TILE - 2); g.fillText(n.id, n.x * TILE, n.y * TILE - 2); }
+      }
+      (window as any).__mapReady = true;
+    })();
+  </script>
+</body>
+</html>
