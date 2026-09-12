@@ -15,10 +15,11 @@ writeFileSync(entry, `
   export { TERRAINS, PIER } from '${process.cwd()}/src/game/assets/terrain.ts';
   export { PROPS, HOUSES } from '${process.cwd()}/src/game/assets/props.ts';
   export { CHARACTERS, ANIMALS } from '${process.cwd()}/src/game/assets/actors.ts';
+  export { FURNITURE } from '${process.cwd()}/src/game/assets/interior.ts';
 `);
 await build({ entryPoints: [entry], bundle: true, format: 'esm', outfile: join(dir, 'out.mjs'), platform: 'neutral', logLevel: 'silent' });
-const { TOWN, TERRAINS, PIER, PROPS, HOUSES, CHARACTERS, ANIMALS } = await import(pathToFileURL(join(dir, 'out.mjs')).href);
-const props = { ...PROPS, ...PIER };
+const { TOWN, TERRAINS, PIER, PROPS, HOUSES, CHARACTERS, ANIMALS, FURNITURE } = await import(pathToFileURL(join(dir, 'out.mjs')).href);
+const props = { ...PROPS, ...PIER, ...FURNITURE };
 
 const errors = [], warns = [];
 const err = (m) => errors.push(m), warn = (m) => warns.push(m);

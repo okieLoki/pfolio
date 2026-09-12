@@ -77,5 +77,7 @@ export const FURNITURE: Record<string, Prop> = {
     anim: { sheet: '/game/props/computer.png', x: 0, y: 0, w: 16, h: 24, frames: 2, fps: 1.6 },
     light: { x: 8, y: -12, radius: 18, color: '#7be07a' },
   }),
+  // outdoor: the town's doodle wall; the game paints the live doodle thumbnail into its face (4,3 40x18)
+  doodleWall: P('Doodle wall', '/game/props/doodlewall.png', 0, 0, 48, 30, 3, 1, true, { tags: ['sign'] }),
   lanternFloor: P('Floor lantern', ELEM, 224, 0, 16, 32, 1, 1, true, { light: { x: 8, y: -14, radius: 40, color: '#ffc27a' } }),
 };

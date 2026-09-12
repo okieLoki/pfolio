@@ -90,6 +90,9 @@ export class Board {
   private all: Stroke[] = [];
   private mine: Stroke[] = [];
   private items: Item[] = [];
+  private version = 0;
+  private thumb: { c: HTMLCanvasElement; g: Ctx; v: number } | null = null;
+  private loaded = false;
   open = false;
   /** screen rect of the drawing area in game px, set by draw() */
   rect = { x: 0, y: 0, w: 0, h: 0, s: 1 };
@@ -100,18 +103,49 @@ export class Board {
     this.clearSurface();
   }
 
-  private clearSurface() { this.sg.fillStyle = PAPER; this.sg.fillRect(0, 0, this.W, this.H); }
+  private clearSurface() { this.sg.fillStyle = PAPER; this.sg.fillRect(0, 0, this.W, this.H); this.version++; }
   private repaint() { this.clearSurface(); for (const s of this.all) this.paint(s); }
+
+  /** Load the strokes once at boot so the wall in the town square shows the current drawing. */
+  async preload() {
+    if (this.loaded) return;
+    this.loaded = true;
+    try { this.all = await this.store.load(); this.repaint(); } catch {}
+  }
 
   async show() {
     this.open = true;
-    this.clearSurface();
-    this.all = await this.store.load();
-    this.repaint();
+    if (!this.loaded) await this.preload();
+    else { this.all = await this.store.load(); this.repaint(); }
     this.unsub = this.store.subscribe((s) => {
       if (this.all.some((x) => x.id && x.id === s.id)) return; // our own echo
       this.all.push(s); this.paint(s);
     });
+  }
+
+  /** Tiny max-pooled preview (thin strokes survive the downscale) for the in-world prop. */
+  thumbnail(w: number, h: number): HTMLCanvasElement {
+    if (this.thumb && this.thumb.v === this.version && this.thumb.c.width === w && this.thumb.c.height === h) return this.thumb.c;
+    if (!this.thumb || this.thumb.c.width !== w || this.thumb.c.height !== h) { const [c, g] = makeCanvas(w, h); this.thumb = { c, g, v: -1 }; }
+    const { g } = this.thumb;
+    const src = this.sg.getImageData(0, 0, this.W, this.H).data;
+    const out = g.createImageData(w, h);
+    const bw = this.W / w, bh = this.H / h;
+    for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
+      const x0 = Math.floor(tx * bw), x1 = Math.floor((tx + 1) * bw), y0 = Math.floor(ty * bh), y1 = Math.floor((ty + 1) * bh);
+      let best = -1, bestScore = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const i = (y * this.W + x) * 4;
+        const r = src[i], gg = src[i + 1], b = src[i + 2];
+        const score = Math.abs(r - 0xf7) + Math.abs(gg - 0xef) + Math.abs(b - 0xe1); // distance from paper
+        if (score > bestScore + 20) { bestScore = score; best = i; }
+      }
+      const o = (ty * w + tx) * 4;
+      if (best >= 0) { out.data[o] = src[best]; out.data[o + 1] = src[best + 1]; out.data[o + 2] = src[best + 2]; out.data[o + 3] = 255; }
+    }
+    g.putImageData(out, 0, 0);
+    this.thumb.v = this.version;
+    return this.thumb.c;
   }
 
   hide() { this.open = false; this.unsub?.(); this.unsub = null; this.drawing = null; this.last = null; this.pg.clearRect(0, 0, this.W, this.H); }
@@ -131,6 +165,7 @@ export class Board {
   private ink(s: Stroke) { return s.c < 0 ? PAPER : PALETTE[s.c] ?? '#000'; }
 
   private paint(s: Stroke, g: Ctx = this.sg) {
+    if (g === this.sg) this.version++;
     g.fillStyle = this.ink(s);
     const size = this.brush(s), p = s.p, t = s.t ?? 'p';
     if (p.length < 2) return;
@@ -211,6 +246,7 @@ export class Board {
     const b = this.toBoard(gx, gy, true)!;
     if (!this.last || (b[0] === this.last[0] && b[1] === this.last[1])) return;
     if (this.drawing.t === 'p') {
+      this.version++;
       this.sg.fillStyle = this.ink(this.drawing);
       this.line(this.sg, this.last[0], this.last[1], b[0], b[1], this.brush(this.drawing));
       this.drawing.p.push(...b);

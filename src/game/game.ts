@@ -143,6 +143,7 @@ export class Game {
     this.content = buildContent(this.data);
     const sb = this.data.site.supabase;
     this.board = new Board(sb?.url && sb?.anonKey ? new SupabaseStore(sb.url, sb.anonKey) : new LocalStore());
+    this.board.preload();
     this.bindPointer();
     this.buildWorld();
     // live data, best effort
@@ -738,7 +739,11 @@ export class Game {
     for (const p of this.world.props) {
       const r = p.prop.region;
       if (p.px + r.w < cam.x || p.py + r.h < cam.y || p.px > cam.x + vw || p.py > cam.y + vh) continue;
-      drawables.push({ y: p.sortY, draw: () => { g.save(); g.translate(-cam.x, -cam.y); this.world.drawProp(g, p, this.time); g.restore(); } });
+      drawables.push({ y: p.sortY, draw: () => {
+        g.save(); g.translate(-cam.x, -cam.y); this.world.drawProp(g, p, this.time);
+        if (p.id === 'doodle') g.drawImage(this.board.thumbnail(40, 18), p.px + 4, p.py + 3); // live doodle on the wall
+        g.restore();
+      } });
     }
     const shadow = { img: this.images.get(this.manifest.shadow.sheet)!, ...this.manifest.shadow };
     const actors = this.state === 'title' ? this.npcs : [this.player, ...this.npcs];

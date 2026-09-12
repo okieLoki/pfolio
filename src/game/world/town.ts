@@ -99,10 +99,7 @@ fenceRect('Rail', 43, 5, 15, 8, [[48, 12], [49, 12]]);               // office l
 solidAdd('chestClosed', 12, 9, 1, 1, { id: 'mailbox' });
 solidAdd('signPostRed', 12, 11, 1, 1, { id: 'sign-home' });
 
-solidAdd('potOrange', 13, 8);
 solidAdd('treePinkRound', 5, 6, 2);
-solidAdd('bushBerryPinkA', 15, 7);
-solidAdd('bushBerryPinkB', 15, 9);
 solidAdd('logBench', 13, 12, 3);
 
 // pen
@@ -113,13 +110,10 @@ solidAdd('signPostRed', 12, 15, 1, 1, { id: 'sign-welcome' });
 // plaza
 solidAdd('statueBuddhaTan', 35, 8, 2, 1, { id: 'statue' });
 solidAdd('noticeBoard', 28, 8, 1, 1, { id: 'board' });
-solidAdd('signBoardApple', 30, 7, 1, 1, { id: 'doodle' }); solidAdd('noticeBoard', 31, 7, 1, 1, { id: 'doodle' }); solidAdd('noticeBoard', 32, 7, 1, 1, { id: 'doodle' });
+solidAdd('doodleWall', 30, 7, 3, 1, { id: 'doodle' });
 solidAdd('lampPostWood', 26, 6); solidAdd('lampPostWood', 38, 6); solidAdd('lampPostWood', 26, 13); solidAdd('lampPostWood', 38, 13);
-solidAdd('stallCounterA', 27, 12, 3); solidAdd('stallCurtained', 36, 12, 2);
-solidAdd('cartLoaded', 37, 10, 2); solidAdd('barrelClosedA', 27, 10); solidAdd('barrelOpen', 28, 10); solidAdd('crateWood', 27, 9);
-solidAdd('basketVeg', 30, 12); solidAdd('basketWheat', 34, 12);
+solidAdd('stallCurtained', 36, 12, 2);
 solidAdd('logBench', 29, 14, 3); solidAdd('logBench', 34, 14, 3);
-solidAdd('flagRed', 39, 8); solidAdd('flagBlue', 25, 8);
 
 // office
 solidAdd('signPostRed', 51, 10, 1, 1, { id: 'sign-office' });
@@ -130,8 +124,8 @@ solidAdd('treeLimeRound', 44, 13, 2); solidAdd('treeLimeRound', 55, 13, 2);
 
 // workshop
 solidAdd('signPostRed', 12, 27, 1, 1, { id: 'sign-workshop' });
-solidAdd('workbench', 6, 27, 2); solidAdd('weaponRackA', 13, 25, 2); solidAdd('crateWood', 6, 29); solidAdd('crateMarked', 7, 29);
-solidAdd('barrelClosedA', 13, 28); solidAdd('barrelOpenB', 14, 28); solidAdd('logShort', 6, 25); solidAdd('stumpBrown', 4, 29, 2);
+solidAdd('workbench', 6, 27, 2); solidAdd('weaponRackA', 13, 25, 2); solidAdd('crateWood', 6, 29);
+solidAdd('barrelClosedA', 13, 28); solidAdd('stumpBrown', 4, 29, 2);
 solidAdd('firePitStone', 15, 30, 2, 2); add('campfireFlame', 15, 29); solidAdd('logBench', 12, 31, 3);
 
 
@@ -144,7 +138,7 @@ solidAdd('statueFrogTan', 28, 20); solidAdd('lanternStone', 26, 28); solidAdd('l
 solidAdd('signPostRed', 45, 22, 1, 1, { id: 'sign-pond' });
 add('dockCornerWood', 47, 25); claim(47, 25, 3, 2);   // walkable dock over the water
 add('reeds', 46, 27); add('reeds', 57, 21); add('reeds', 58, 25); add('reeds', 50, 29);
-solidAdd('boulderBrown', 58, 27, 2); solidAdd('rockBrownSmall', 47, 21); solidAdd('bucketWater', 45, 26);
+solidAdd('boulderBrown', 58, 27, 2);
 solidAdd('treeGreenLarge', 55, 18, 4); solidAdd('treeGreenRound', 59, 30, 2); solidAdd('treeDarkGreenRound', 44, 30, 2);
 solidAdd('lampPostWood', 45, 23);
 
@@ -156,8 +150,8 @@ for (const [x, y] of [[4, 33], [8, 32], [14, 32], [20, 33], [23, 36], [4, 41], [
   const w = name.includes('Large') ? 4 : name === 'treeGreenBig' ? 1 : 2;
   if (free(x, y, w)) solidAdd(name, x, y, w);
 }
-solidAdd('stumpBrown', 17, 40, 2); solidAdd('logShort', 21, 39); solidAdd('boulderBrown', 6, 36, 2); solidAdd('rockBrownSmall', 22, 34);
-add('mushroomsRed', 9, 34); add('mushroomsRed', 19, 43); add('mushroomOrangeA', 5, 39); add('mushroomOrangeB', 23, 40);
+solidAdd('stumpBrown', 17, 40, 2); solidAdd('boulderBrown', 6, 36, 2);
+add('mushroomsRed', 9, 34); add('mushroomOrangeA', 5, 39);
 
 // library
 solidAdd('signPostRed', 40, 39, 1, 1, { id: 'sign-library' });
@@ -168,30 +162,30 @@ solidAdd('treeGreenRound', 27, 37, 2); solidAdd('treeGreenRound', 42, 44, 2); so
 // shrine
 solidAdd('signPostRed', 50, 41, 1, 1, { id: 'sign-shrine' });
 solidAdd('torii', 56, 43, 2); solidAdd('statueFoxTan', 51, 43); solidAdd('statueFoxTan', 55, 42);
-solidAdd('lanternStone', 50, 39); solidAdd('lanternStone', 57, 39); solidAdd('lanternStone', 50, 43); solidAdd('lanternStone', 58, 43);
-solidAdd('treePinkRound', 47, 36, 2); solidAdd('treePinkLarge', 56, 35, 4); solidAdd('treePinkRound', 60, 41, 2);
-solidAdd('gravestoneRound', 46, 42); solidAdd('gravestoneRound', 47, 43); solidAdd('statueBuddhaOrbTan', 47, 39, 2);
+solidAdd('lanternStone', 50, 43); solidAdd('lanternStone', 58, 43);
+solidAdd('treePinkRound', 47, 36, 2); solidAdd('treePinkLarge', 56, 35, 4);
+solidAdd('gravestoneRound', 46, 42); solidAdd('statueBuddhaOrbTan', 47, 39, 2);
 
 // fill the open sand with a little life
-for (const [name, x, y, w] of [['treeGreenRound', 18, 21, 2], ['treeDarkGreenRound', 22, 12, 2], ['treeGreenRound', 40, 31, 2], ['treeDarkGreenLarge', 44, 33, 4], ['treeGreenRound', 20, 30, 2], ['treeGreenRoundB', 58, 33, 2], ['treeDarkGreenRound', 42, 4, 2], ['treeGreenRound', 24, 4, 2], ['treeGreenRoundB', 4, 15, 2], ['bushLeafy', 25, 15, 1], ['bushRound', 41, 21, 1], ['bushLeafy', 47, 31, 1], ['boulderBrown', 26, 32, 2], ['cartEmpty', 18, 12, 2], ['hayRollH', 20, 24, 2], ['stumpBrown', 41, 27, 2], ['bushRound', 43, 15, 1], ['rockBrownSmall', 23, 33, 1], ['woodGateSmall', 30, 2, 3]] as const) {
+for (const [name, x, y, w] of [['treeGreenRound', 18, 21, 2], ['treeDarkGreenRound', 22, 12, 2], ['treeGreenRound', 40, 31, 2], ['treeDarkGreenLarge', 44, 33, 4], ['treeGreenRound', 20, 30, 2], ['treeGreenRoundB', 58, 33, 2], ['treeDarkGreenRound', 42, 4, 2], ['treeGreenRound', 24, 4, 2], ['treeGreenRoundB', 4, 15, 2], ['bushLeafy', 25, 15, 1], ['bushRound', 41, 21, 1], ['bushLeafy', 47, 31, 1], ['bushRound', 43, 15, 1], ['woodGateSmall', 30, 2, 3]] as const) {
   if (free(x, y, w)) solidAdd(name, x, y, w);
 }
 
 // road-side lanterns along the avenue and main street
-for (const y of [6, 12, 20, 30, 36, 44]) { if (free(30, y)) solidAdd('lanternStone', 30, y); if (free(33, y)) solidAdd('lanternStone', 33, y); }
-for (const x of [16, 22, 40, 44, 56]) { if (free(x, 15)) solidAdd('lampPostWood', x, 15); }
+for (const y of [20, 30, 44]) { if (free(30, y)) solidAdd('lanternStone', 30, y); if (free(33, y)) solidAdd('lanternStone', 33, y); }
+for (const x of [22, 40, 56]) { if (free(x, 15)) solidAdd('lampPostWood', x, 15); }
 
 // scatter: flowers on grass, pebbles on sand, tufts in the forest
 const grassDecor = ['flowerWhite', 'flowerRedTulip', 'clover', 'tuftGreenA', 'grassTuft', 'sunflowerA', 'decalFlowerPatch', 'flowerWhiteAnim', 'plantLeafA', 'decalPetals'];
 const sandDecor = ['pebblesSandA', 'pebblesSandB', 'pebblesSandC', 'decalSandMounds', 'grassShort'];
 const forestDecor = ['tuftGreenA', 'tuftGreenB', 'grassTall', 'fernA', 'mushroomsRed', 'sproutA', 'decalLeafScatter'];
-for (let i = 0; i < 700; i++) {
+for (let i = 0; i < 380; i++) {
   const x = 2 + Math.floor(rand() * (W - 4)), y = 3 + Math.floor(rand() * (H - 6));
   const c = at(x, y);
   if (!free(x, y) || c === 'W' || c === 'P' || c === 'D') continue;
-  if (c === 'G' && rand() < 0.5) { add(pick(grassDecor), x, y); claim(x, y); }
-  else if (c === 'T' && rand() < 0.35) { add(pick(forestDecor), x, y); claim(x, y); }
-  else if (c === '.' && rand() < 0.4) { add(pick(sandDecor), x, y); claim(x, y); }
+  if (c === 'G' && rand() < 0.35) { add(pick(grassDecor), x, y); claim(x, y); }
+  else if (c === 'T' && rand() < 0.3) { add(pick(forestDecor), x, y); claim(x, y); }
+  else if (c === '.' && rand() < 0.25) { add(pick(sandDecor), x, y); claim(x, y); }
 }
 
 // ---------- people & animals ----------
