@@ -16,6 +16,7 @@ import { makeCanvas } from './core/gfx';
 import type { Input } from './core/input';
 import type { TextRenderer } from './core/text';
 import { SAFE } from './core/dialogue';
+import { track } from '../lib/track';
 
 /** t: p=pen (polyline), l=line, r/R=rect outline/filled, o/O=ellipse outline/filled.
  *  c: palette index, -1 = eraser. s: brush size. p: flat [x0,y0,x1,y1,...]. */
@@ -264,6 +265,7 @@ export class Board {
     if (s.t !== 'p') this.paint(s);
     this.all.push(s); this.mine.push(s);
     this.store.add(s).catch(() => {});
+    track('game', 'doodle', { tool: s.t, color: s.c, size: s.s, points: s.p.length / 2 });
   }
   private paintPreview() {
     this.pg.clearRect(0, 0, this.W, this.H);

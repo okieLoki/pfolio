@@ -6,6 +6,7 @@ import type { Ctx } from './core/gfx';
 import type { TextRenderer } from './core/text';
 import { SAFE } from './core/dialogue';
 import type { GameApi } from './content';
+import { track } from '../lib/track';
 
 type Line = { text: string; color?: string };
 
@@ -143,6 +144,7 @@ export class Terminal {
     this.hIdx = -1;
     const [name, ...args] = cmd.split(/\s+/);
     const fn = this.commands()[name.toLowerCase()];
+    track('game', 'terminal', { cmd: cmd.slice(0, 80), known: !!fn });
     if (fn) { try { fn(args, cmd); } catch { this.print('segmentation fault (core dumped, sorry)', C.err); } }
     else this.print(`${name}: command not found. Try "help".`, C.err);
     this.api.sfx('select');

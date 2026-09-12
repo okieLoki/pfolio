@@ -1,6 +1,8 @@
 // Everything editable about the site lives here.
 // Posts live in src/content/posts/*.md
 
+const env: Record<string, string | undefined> = (import.meta as any).env ?? {};
+
 export const site = {
   name: 'Uddeepta Raaj Kashyap',
   shortName: 'Uddeepta',
@@ -14,8 +16,10 @@ export const site = {
   // GitHub username: the Workshop lists your latest public repos live (leave '' to disable)
   github: 'okieLoki',
   url: 'https://example.com',
-  // Shared doodle wall. Create a free Supabase project, run the SQL in src/game/board.ts, paste the two values.
-  supabase: { url: '', anonKey: '' },
+  // Supabase powers the shared doodle wall and the visitor log behind /admin.
+  // Put PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY in .env (see .env.example);
+  // the SQL to run once is at the top of src/game/board.ts and src/lib/track.ts.
+  supabase: { url: env.PUBLIC_SUPABASE_URL ?? '', anonKey: env.PUBLIC_SUPABASE_ANON_KEY ?? '' },
 };
 
 export const intro = [

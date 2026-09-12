@@ -1,0 +1,276 @@
+---
+// Private visitor log. Reads the `events` table through the password-checked
+// `admin_events` RPC (SQL at the top of src/lib/track.ts). Nothing here is secret:
+// the password is typed in and verified by Postgres on every request.
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+const configured = !!(site.supabase.url && site.supabase.anonKey);
+---
+
+<Base title="Admin" noindex>
+  <section class="box admin" id="admin" data-configured={configured ? '1' : '0'}>
+    <header class="head">
+      <h1>VISITOR LOG</h1>
+      <div class="tools" id="tools" hidden>
+        <span class="ranges" id="ranges">
+          <button data-days="1">24h</button><button data-days="7" class="on">7d</button><button data-days="30">30d</button><button data-days="90">90d</button>
+        </span>
+        <label><input type="checkbox" id="dev" /> include localhost</label>
+        <label><input type="checkbox" id="notrack" /> don't log me</label>
+        <button id="refresh">Refresh</button>
+        <button id="logout">Sign out</button>
+      </div>
+    </header>
+
+    {!configured ? (
+      <div class="setup">
+        <p>Not configured yet. Three steps:</p>
+        <ol>
+          <li>Create a free project at <a href="https://supabase.com">supabase.com</a>, copy the URL and anon key into <code>.env</code> (see <code>.env.example</code>) and rebuild.</li>
+          <li>Open the project's SQL editor and run the SQL block at the top of <code>src/lib/track.ts</code>. Change <code>'change-me'</code> to your password on the <code>set_admin_password</code> line.</li>
+          <li>Come back here and sign in.</li>
+        </ol>
+      </div>
+    ) : (
+      <>
+        <form class="login" id="login">
+          <label for="pw">Password</label>
+          <input id="pw" type="password" autocomplete="current-password" required />
+          <button type="submit">Open</button>
+          <p class="err" id="err" hidden></p>
+        </form>
+        <div id="dash" hidden>
+          <p class="status" id="status"></p>
+          <div class="kpis" id="kpis"></div>
+          <div class="chart" id="chart"></div>
+          <div class="grid" id="panels"></div>
+          <h2>Sessions <small id="sessCount"></small></h2>
+          <p class="hint">Newest first. Click a row for the full timeline of what that visitor did.</p>
+          <div class="sessions" id="sessions"></div>
+        </div>
+      </>
+    )}
+  </section>
+</Base>
+
+<style>
+  .admin { font-family: var(--body); font-size: 15px; }
+  .admin h1 { font-family: var(--pixel); font-size: 20px; margin: 0; }
+  .admin h2 { font-family: var(--pixel); font-size: 15px; text-transform: uppercase; color: var(--ink-soft); margin: 1.75rem 0 0.25rem; }
+  .admin h2 small { font-family: var(--body); text-transform: none; font-weight: normal; color: var(--ink-soft); }
+  .admin h3 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 0.4rem; }
+  .head { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .tools { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center; font-size: 13px; }
+  .tools button, .login button { font: inherit; padding: 0.25rem 0.6rem; border: 1px solid var(--border-inner); background: var(--panel); color: var(--ink); cursor: pointer; border-radius: 3px; }
+  .tools .ranges button { border-radius: 0; margin-left: -1px; }
+  .tools .ranges button.on, .tools button:hover { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .login { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0; }
+  .login input { font: inherit; padding: 0.3rem 0.5rem; border: 1px solid var(--border-inner); border-radius: 3px; min-width: 14rem; }
+  .err { color: var(--accent); width: 100%; margin: 0; }
+  .setup ol { padding-left: 1.2rem; line-height: 1.6; }
+  .status { color: var(--ink-soft); font-size: 13px; margin: 0 0 0.75rem; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+  .kpi { border: 1px solid var(--border-inner); border-radius: 4px; padding: 0.55rem 0.7rem; background: var(--panel); }
+  .kpi b { display: block; font-size: 22px; font-weight: 600; }
+  .kpi span { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+  .chart svg { width: 100%; height: 120px; display: block; }
+  .chart rect { fill: var(--accent-2); }
+  .chart text { font: 10px var(--body); fill: var(--ink-soft); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+  .panel { border: 1px solid var(--border-inner); border-radius: 4px; padding: 0.7rem 0.8rem; background: var(--panel); min-width: 0; }
+  .panel table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .panel td { padding: 0.15rem 0; vertical-align: top; }
+  .panel td:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; }
+  .panel td:last-child { text-align: right; padding-left: 0.5rem; color: var(--ink-soft); white-space: nowrap; }
+  .bar { display: block; height: 3px; background: var(--accent-2); opacity: 0.55; margin-top: 2px; }
+  .hint { color: var(--ink-soft); font-size: 13px; margin: 0 0 0.5rem; }
+  .sessions { border-top: 1px solid var(--border-inner); }
+  .sess { border-bottom: 1px solid var(--border-inner); }
+  .sess > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1.2rem 9rem 1fr auto; gap: 0.5rem 0.75rem; align-items: baseline; padding: 0.45rem 0.2rem; font-size: 13px; }
+  .sess > summary::-webkit-details-marker { display: none; }
+  .sess > summary:hover { background: rgba(76, 115, 216, 0.06); }
+  .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; vertical-align: middle; border: 1px solid rgba(0,0,0,0.25); }
+  .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .what { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .when { color: var(--ink-soft); white-space: nowrap; }
+  .timeline { margin: 0 0 0.75rem 1.9rem; font-size: 13px; border-left: 2px solid var(--border-inner); padding-left: 0.75rem; }
+  .timeline .env { color: var(--ink-soft); margin-bottom: 0.4rem; line-height: 1.5; }
+  .timeline table { border-collapse: collapse; width: 100%; }
+  .timeline td { padding: 0.12rem 0.5rem 0.12rem 0; vertical-align: top; }
+  .timeline td:first-child { color: var(--ink-soft); white-space: nowrap; width: 3.5rem; }
+  .timeline td:nth-child(2) { white-space: nowrap; width: 5rem; }
+  .timeline .props { color: var(--ink-soft); word-break: break-word; }
+  .t-game { color: #2e7d32; } .t-click { color: var(--accent-2); } .t-error { color: var(--accent); } .t-pageview { font-weight: 600; }
+  @media (max-width: 600px) { .sess > summary { grid-template-columns: 1.2rem 1fr auto; } .sess .what { grid-column: 2 / -1; } }
+</style>
+
+<script>
+  import { site } from '../data/site';
+
+  type Ev = { id: number; ts: string; visitor: string; session: string; type: string; name: string; path: string; ref: string; country: string; region: string; city: string; ua: string; device: string; lang: string; tz: string; screen: string; props: Record<string, any> | null };
+
+  const root = document.getElementById('admin')!;
+  if (root.dataset.configured === '1') {
+    const $ = (id: string) => document.getElementById(id)!;
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+    const { url, anonKey } = site.supabase;
+    let days = 7, all: Ev[] = [], timer = 0;
+
+    const browserOf = (ua: string) => /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /SamsungBrowser/.test(ua) ? 'Samsung' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Other';
+    const osOf = (ua: string) => /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Mac OS X/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : 'Other';
+    const fmtDur = (s: number) => s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+    const ago = (d: Date) => { const s = (Date.now() - d.getTime()) / 1000; return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : `${Math.floor(s / 86400)} d ago`; };
+    const hue = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+    const dot = (id: string) => `<i class="dot" style="background:hsl(${hue(id)} 70% 60%)"></i>`;
+    const place = (e: Ev) => [e.city, e.region && e.region !== e.city ? e.region : '', e.country].filter(Boolean).join(', ') || 'unknown place';
+
+    async function rpc(pw: string, d: number): Promise<Ev[]> {
+      const r = await fetch(`${url}/rest/v1/rpc/admin_events`, {
+        method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pw, days: d, max_rows: 20000 }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message ?? `HTTP ${r.status}`); }
+      return r.json();
+    }
+
+    const pw = () => sessionStorage.getItem('adminpw') ?? '';
+
+    async function load() {
+      if (!pw()) return;
+      $('status').textContent = 'Loading…';
+      try {
+        all = await rpc(pw(), days);
+        render();
+      } catch (e: any) {
+        $('status').textContent = '';
+        if (/wrong password/i.test(e.message)) { sessionStorage.removeItem('adminpw'); show(false); $('err').textContent = 'Wrong password.'; $('err').hidden = false; }
+        else $('status').textContent = `Could not load: ${e.message}`;
+      }
+    }
+
+    function show(loggedIn: boolean) {
+      $('login').hidden = loggedIn; $('dash').hidden = !loggedIn; $('tools').hidden = !loggedIn;
+      clearInterval(timer);
+      if (loggedIn) timer = window.setInterval(load, 60000);
+    }
+
+    function top<T>(items: T[], key: (t: T) => string | undefined, n = 8) {
+      const m = new Map<string, number>();
+      for (const it of items) { const k = key(it); if (k) m.set(k, (m.get(k) ?? 0) + 1); }
+      return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+    }
+    const panel = (title: string, rows: [string, number][], total?: number) => {
+      const max = rows[0]?.[1] ?? 1;
+      return `<div class="panel"><h3>${esc(title)}</h3>${rows.length ? `<table>${rows.map(([k, v]) => `<tr><td title="${esc(k)}">${esc(k)}<span class="bar" style="width:${Math.round(100 * v / max)}%"></span></td><td>${v}${total ? ` <small>(${Math.round(100 * v / total)}%)</small>` : ''}</td></tr>`).join('')}</table>` : '<p class="hint">nothing yet</p>'}</div>`;
+    };
+
+    function render() {
+      const includeDev = ($('dev') as HTMLInputElement).checked;
+      const ev = all.filter((e) => includeDev || !e.props?.dev);
+      const views = ev.filter((e) => e.type === 'pageview');
+      const visitors = new Set(ev.map((e) => e.visitor));
+
+      // sessions
+      const byS = new Map<string, Ev[]>();
+      for (const e of ev) { if (!byS.has(e.session)) byS.set(e.session, []); byS.get(e.session)!.push(e); }
+      const sessions = [...byS.values()].map((list) => {
+        list.sort((a, b) => a.id - b.id);
+        const first = list[0], last = list[list.length - 1];
+        const sess = list.find((e) => e.type === 'session');
+        const ends = list.filter((e) => e.type === 'leave' || e.type === 'heartbeat').map((e) => e.props?.seconds ?? 0);
+        const span = (new Date(last.ts).getTime() - new Date(first.ts).getTime()) / 1000;
+        const dur = Math.max(span, ...ends, 0);
+        const stats = [...list].reverse().find((e) => e.props && 'steps' in e.props)?.props ?? {};
+        return { id: first.session, visitor: first.visitor, first, last, list, sess, dur, stats,
+          pages: [...new Set(list.filter((e) => e.type === 'pageview').map((e) => e.path))],
+          game: list.filter((e) => e.type === 'game'), clicks: list.filter((e) => e.type === 'click'), errors: list.filter((e) => e.type === 'error') };
+      }).sort((a, b) => b.last.id - a.last.id);
+
+      const durs = sessions.map((s) => s.dur).filter((d) => d > 0);
+      const avg = durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : 0;
+      const returning = new Set(sessions.filter((s) => s.sess?.props?.returning).map((s) => s.visitor)).size;
+      const starts = ev.filter((e) => e.type === 'game' && e.name === 'start').length;
+      const kpi = (v: string | number, l: string) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`;
+      $('kpis').innerHTML = kpi(views.length, 'page views') + kpi(visitors.size, 'visitors') + kpi(sessions.length, 'sessions') + kpi(returning, 'returning') + kpi(starts, 'game starts') + kpi(fmtDur(avg), 'avg session') + kpi(ev.filter((e) => e.type === 'error').length, 'js errors');
+      const newest = ev[0] ? new Date(ev[0].ts) : null;
+      $('status').textContent = `${ev.length} events in the last ${days === 1 ? '24 hours' : days + ' days'}${newest ? ` · latest ${ago(newest)}` : ''} · refreshes every minute`;
+
+      // chart: page views per hour (24h) or per day
+      const buckets = new Map<string, number>();
+      const now = new Date();
+      const n = days === 1 ? 24 : days;
+      for (let i = n - 1; i >= 0; i--) {
+        const d = new Date(now);
+        if (days === 1) { d.setHours(d.getHours() - i, 0, 0, 0); buckets.set(d.toISOString().slice(0, 13), 0); }
+        else { d.setDate(d.getDate() - i); buckets.set(d.toLocaleDateString('en-CA'), 0); }
+      }
+      for (const v of views) { const d = new Date(v.ts); const k = days === 1 ? d.toISOString().slice(0, 13) : d.toLocaleDateString('en-CA'); if (buckets.has(k)) buckets.set(k, buckets.get(k)! + 1); }
+      const vals = [...buckets.values()], max = Math.max(1, ...vals), bw = 100 / vals.length;
+      $('chart').innerHTML = `<svg viewBox="0 0 100 40" preserveAspectRatio="none">${vals.map((v, i) => `<rect x="${i * bw + bw * 0.1}" y="${36 - (v / max) * 34}" width="${bw * 0.8}" height="${(v / max) * 34}"><title>${[...buckets.keys()][i]}: ${v}</title></rect>`).join('')}</svg><p class="hint">page views per ${days === 1 ? 'hour' : 'day'} · peak ${max}</p>`;
+
+      // panels
+      const clicks = ev.filter((e) => e.type === 'click');
+      const game = ev.filter((e) => e.type === 'game');
+      $('panels').innerHTML = [
+        panel('Pages', top(views, (e) => e.path), views.length),
+        panel('Referrers', top(sessions, (s) => s.sess?.props?.referrer ? new URL(s.sess.props.referrer).hostname : s.first.ref || 'direct'), sessions.length),
+        panel('Where from', top(sessions, (s) => place(s.first)), sessions.length),
+        panel('Devices', top(sessions, (s) => `${s.first.device} · ${osOf(s.first.ua)} · ${browserOf(s.first.ua)}`), sessions.length),
+        panel('Languages & time zones', top(sessions, (s) => `${s.first.lang} · ${s.first.tz}`), sessions.length),
+        panel('Screens', top(sessions, (s) => `${s.first.screen}${s.sess?.props?.dpr ? ` @${s.sess.props.dpr}x` : ''}`), sessions.length),
+        panel('Buildings entered', top(game.filter((e) => e.name === 'enter'), (e) => e.props?.map)),
+        panel('Talked to', top(game.filter((e) => e.name === 'talk'), (e) => e.props?.name)),
+        panel('Read / used', top(game.filter((e) => e.name === 'read'), (e) => e.props?.id)),
+        panel('Battles', top(game.filter((e) => e.name === 'battle'), (e) => `${e.props?.event} vs ${e.props?.monster}`)),
+        panel('Menu picks', top(game.filter((e) => e.name === 'choose'), (e) => `${e.props?.title ? e.props.title + ' → ' : ''}${e.props?.pick}`)),
+        panel('Terminal commands', top(game.filter((e) => e.name === 'terminal'), (e) => e.props?.cmd)),
+        panel('Doodles', [['strokes', game.filter((e) => e.name === 'doodle').length], ...top(game.filter((e) => e.name === 'doodle'), (e) => `tool ${e.props?.tool ?? 'p'}`)]),
+        panel('Links clicked', top(clicks, (e) => e.name)),
+        panel('Errors', top(ev.filter((e) => e.type === 'error'), (e) => e.name)),
+      ].join('');
+
+      // sessions list
+      $('sessCount').textContent = `(${sessions.length})`;
+      $('sessions').innerHTML = sessions.slice(0, 300).map((s) => {
+        const f = s.first, env = s.sess?.props ?? {};
+        const summary = [
+          s.pages.length ? `${s.pages.length} page${s.pages.length > 1 ? 's' : ''}` : '', s.game.some((e) => e.name === 'start') ? 'played' : '',
+          s.stats.steps ? `${s.stats.steps} steps` : '', s.stats.maps ? `visited ${s.stats.maps}` : '', s.game.filter((e) => e.name === 'battle' && e.props?.event === 'win').length ? `won ${s.game.filter((e) => e.name === 'battle' && e.props?.event === 'win').length}` : '',
+          s.game.some((e) => e.name === 'terminal') ? 'used terminal' : '', s.game.some((e) => e.name === 'doodle') ? 'doodled' : '', s.clicks.length ? `${s.clicks.length} clicks` : '', s.errors.length ? `${s.errors.length} errors` : '',
+        ].filter(Boolean).join(' · ');
+        const who = `${dot(s.visitor)} <span class="who" title="visitor ${esc(s.visitor)}">${esc(place(f))}</span>`;
+        const meta = `${f.device} · ${osOf(f.ua)} · ${browserOf(f.ua)}${env.returning ? ' · returning' : ''}${env.referrer ? ` · from ${esc(new URL(env.referrer).hostname)}` : f.ref ? ` · from ${esc(f.ref)}` : ''}`;
+        const envLine = Object.entries({ visitor: s.visitor, visits: env.visits, landing: env.landing, referrer: env.referrer, utm: env.utm && Object.keys(env.utm).length ? JSON.stringify(env.utm) : '', screen: f.screen, viewport: env.viewport, dpr: env.dpr, lang: env.languages ?? f.lang, tz: f.tz, platform: env.platform, cores: env.cores, memory: env.memoryGB && `${env.memoryGB}GB`, net: env.connection, touch: env.touchPoints, dark: env.darkMode, isp: f.props?.isp, ip: f.props?.ip, ua: f.ua })
+          .filter(([, v]) => v !== undefined && v !== '' && v !== null && v !== false).map(([k, v]) => `<b>${k}</b> ${esc(v)}`).join(' · ');
+        const t0 = new Date(f.ts).getTime();
+        const rows = s.list.filter((e) => e.type !== 'session').map((e) => {
+          const p = { ...(e.props ?? {}) }; delete p.seq; delete p.at; delete p.dev; delete p.isp; delete p.ip;
+          const props = Object.entries(p).filter(([, v]) => v !== '' && v !== undefined && v !== null).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ');
+          return `<tr><td>+${fmtDur((new Date(e.ts).getTime() - t0) / 1000)}</td><td class="t-${e.type}">${e.type}${e.type === 'game' ? ' · ' + esc(e.name) : ''}</td><td>${e.type === 'game' ? '' : esc(e.name)}${e.type === 'pageview' ? ` <small>${esc(e.path)}</small>` : ''} <span class="props">${esc(props)}</span></td></tr>`;
+        }).join('');
+        return `<details class="sess"><summary><span>${dot(s.visitor)}</span><span class="who">${esc(place(f))}</span><span class="what">${esc(meta)}${summary ? ' — ' + esc(summary) : ''}</span><span class="when" title="${esc(new Date(f.ts).toLocaleString())}">${ago(new Date(s.last.ts))} · ${fmtDur(s.dur)}</span></summary><div class="timeline"><div class="env">${envLine}</div><table>${rows}</table></div></details>`;
+      }).join('') || '<p class="hint">No sessions in this range.</p>';
+    }
+
+    // wiring
+    $('login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = ($('pw') as HTMLInputElement).value;
+      $('err').hidden = true;
+      try { all = await rpc(v, days); sessionStorage.setItem('adminpw', v); try { localStorage.setItem('notrack', '1'); } catch {} ($('notrack') as HTMLInputElement).checked = true; show(true); render(); }
+      catch (err: any) { $('err').textContent = /wrong password/i.test(err.message) ? 'Wrong password.' : `Could not reach Supabase: ${err.message}`; $('err').hidden = false; }
+    });
+    $('logout').addEventListener('click', () => { sessionStorage.removeItem('adminpw'); show(false); });
+    $('refresh').addEventListener('click', load);
+    $('dev').addEventListener('change', render);
+    $('notrack').addEventListener('change', (e) => { try { localStorage.setItem('notrack', (e.target as HTMLInputElement).checked ? '1' : '0'); } catch {} });
+    $('ranges').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button'); if (!b) return;
+      days = +b.dataset.days!;
+      $('ranges').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      load();
+    });
+    try { ($('notrack') as HTMLInputElement).checked = localStorage.getItem('notrack') === '1'; } catch {}
+    if (pw()) { show(true); load(); }
+  }
+</script>

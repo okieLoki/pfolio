@@ -6,9 +6,10 @@ interface Props {
   title?: string;
   description?: string;
   bare?: boolean; // the game page: no boxed header
+  noindex?: boolean;
 }
 
-const { title, description = site.description, bare = false } = Astro.props;
+const { title, description = site.description, bare = false, noindex = false } = Astro.props;
 const pageTitle = title ? `${title} — ${site.shortName}` : site.title;
 const path = Astro.url.pathname;
 const current = (href: string) => (href === '/' ? path === '/' : path.startsWith(href)) ? 'page' : undefined;
@@ -30,6 +31,7 @@ const current = (href: string) => (href === '/' ? path === '/' : path.startsWith
   <link rel="manifest" href="/site.webmanifest" />
   <meta name="theme-color" content="#141b1b" />
   <meta property="og:image" content="/icon-512.png" />
+  {noindex && <meta name="robots" content="noindex, nofollow" />}
   {!bare && (
     <script is:inline>
       // Reading mode: 'pixel' (default) or 'clean'. Applied before paint.
@@ -54,6 +56,7 @@ const current = (href: string) => (href === '/' ? path === '/' : path.startsWith
   <main class={bare ? undefined : 'wrap'}>
     <slot />
   </main>
+  <script>import '../lib/track';</script>
 
   {!bare && (
     <>

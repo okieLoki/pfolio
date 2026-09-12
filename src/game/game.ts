@@ -20,6 +20,7 @@ import { buildContent, MONSTER_NAMES, TRIVIA, JOKE_MOVES, type GameData, type Ga
 import { fetchWeather, fetchRepos, type LiveWeather, type Repo } from './live';
 import { Board, LocalStore, SupabaseStore } from './board';
 import { Terminal } from './terminal';
+import { track } from '../lib/track';
 
 export interface Manifest {
   terrains: Record<string, Terrain>;
@@ -94,6 +95,8 @@ export class Game {
   private rainT = 0;
   private board!: Board;
   private terminal!: Terminal;
+  /** what this visitor did with the game; attached to heartbeat/leave events */
+  private tally = { steps: 0, talks: 0, battles: 0, wins: 0, signs: 0, maps: new Set<string>() };
   private boardResolve: (() => void) | null = null;
 
   private maps: Record<string, WorldDef>;
@@ -144,6 +147,7 @@ export class Game {
     const sb = this.data.site.supabase;
     this.board = new Board(sb?.url && sb?.anonKey ? new SupabaseStore(sb.url, sb.anonKey) : new LocalStore());
     this.board.preload();
+    (window as any).__gameStats = () => ({ steps: this.tally.steps, talks: this.tally.talks, signs: this.tally.signs, battles: this.tally.battles, wins: this.tally.wins, maps: [...this.tally.maps].join(','), map: this.mapId, phase: this.phase, state: this.state });
     this.bindPointer();
     this.buildWorld();
     // live data, best effort
@@ -234,6 +238,8 @@ export class Game {
 
   private warp(map: string, x: number, y: number, dir: Actor['dir']) {
     if (!this.maps[map]) return;
+    track('game', 'enter', { map, from: this.mapId });
+    this.tally.maps.add(map);
     this.busy = true;
     this.fadeTo(1, () => {
       this.loadMap(map);
@@ -291,10 +297,12 @@ export class Game {
       this.dialogue.open(paragraphs, speaker, lay.w - 26 - faceW, 3, resolve);
     }),
     choose: (items, opts = {}) => new Promise<number>((resolve) => {
-      this.menu.open(items, (i) => resolve(i), { ...opts, onCancel: () => resolve(-1) });
+      const done = (i: number) => { track('game', 'choose', { title: opts.title ?? '', pick: i < 0 ? '(cancel)' : items[i]?.label ?? String(i) }); resolve(i); };
+      this.menu.open(items, done, { ...opts, onCancel: () => done(-1) });
     }),
     goTo: (href) => {
       this.audio.play('confirm');
+      track('click', href, { from: 'game', map: this.mapId });
       const sameOrigin = /^\/(?!\/)/.test(href) || href.startsWith(location.origin);
       if (!sameOrigin) { window.open(href, '_blank', 'noopener'); return; }
       this.busy = true;
@@ -379,6 +387,7 @@ export class Game {
     for (const n of this.npcs) n.tick();
     if (this.input.hit('a') || this.input.hit('start')) {
       this.audio.play('confirm');
+      track('game', 'start', { after: Math.round(this.titlePan) });
       this.fadeTo(1, () => { this.enterWorld(true); this.fadeTo(0); }, 2.5);
     }
   }
@@ -457,6 +466,7 @@ export class Game {
       this.particles.grass(p.px, p.py);
       if (Math.random() < 0.09) this.startBattle();
     }
+    this.tally.steps++;
     const wp = this.worldDef.warps?.find((w) => w.x === p.x && w.y === p.y);
     if (wp) { this.audio.play('doorOpen', { volume: 0.6 }); this.warp(wp.map, wp.tx, wp.ty, wp.dir); return; }
     const it = this.world.interactAt(p.x, p.y);
@@ -485,6 +495,8 @@ export class Game {
       npc.frozen = 6;
       const isAnimal = !!this.manifest.animals[Object.keys(this.manifest.animals).find((k) => this.manifest.animals[k] === npc.sheet) ?? ''];
       const c = this.content.npcs[npc.id];
+      track('game', 'talk', { id: npc.id, name: npc.name || npc.id, map: this.mapId });
+      this.tally.talks++;
       if (c && !isAnimal) {
         npc.emote = { anim: 'exclamation', t: 0.8 };
         const face = npc.sheet.faceset;
@@ -501,6 +513,7 @@ export class Game {
     }
     const it = this.world.interactAt(fx, fy);
     if (!it) return;
+    if (it.type !== 'door') { track('game', 'read', { id: it.id, kind: it.type, map: this.mapId }); this.tally.signs++; }
     if (it.type === 'door') return this.enterDoor(it.id, it.label);
     if (it.type === 'house') { this.run((g) => g.say([`${it.label}. The door is around the front.`])); return; }
     if (it.type === 'sign') {
@@ -591,6 +604,8 @@ export class Game {
     const keys = Object.keys(this.manifest.monsters).filter((k) => MONSTER_NAMES[k] && !k.startsWith('butterfly'));
     const key = keys[Math.floor(Math.random() * keys.length)] ?? Object.keys(this.manifest.monsters)[0];
     const monster = this.manifest.monsters[key];
+    track('game', 'battle', { event: 'start', monster: key });
+    this.tally.battles++;
     this.audio.play('encounterAlert');
     this.flash = 0.7;
     this.busy = true;
@@ -619,8 +634,10 @@ export class Game {
       this.audio.playMusic('victory', 200);
       try { localStorage.setItem('bugsFixed', String(this.bugsFixed() + 1)); } catch {}
       await g.say([`${me} fixed a bug! Bugs fixed: ${this.bugsFixed()}.`]);
+      track('game', 'battle', { event: 'win', monster: b.key, question: q.q.slice(0, 80) });
+      this.tally.wins++;
     };
-    const lose = async (line: string) => { this.audio.play('cancel'); await g.say([line]); };
+    const lose = async (line: string) => { this.audio.play('cancel'); track('game', 'battle', { event: 'lose', monster: b.key, question: q.q.slice(0, 80) }); await g.say([line]); };
     let tries = 0;
     for (;;) {
       const i = await g.choose(
@@ -628,7 +645,7 @@ export class Game {
         { title: q.q, anchor: 'center', rows: 5 },
       );
       if (i === q.correct) { await win(q.win); break; }
-      if (i === -1 || i === q.answers.length + 1) { await g.say(['Got away safely! (The bug is still out there.)']); break; }
+      if (i === -1 || i === q.answers.length + 1) { track('game', 'battle', { event: 'run', monster: b.key }); await g.say(['Got away safely! (The bug is still out there.)']); break; }
       if (i === q.answers.length) {
         if (Math.random() < joke.works) { await win(joke.win); } else { await lose(joke.lose); }
         break;
