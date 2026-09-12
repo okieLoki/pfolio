@@ -19,7 +19,7 @@
 //   create table if not exists admin_secret (id int primary key default 1, hash text not null);
 //   alter table admin_secret enable row level security;   -- no policies: unreachable through the API
 //   create or replace function set_admin_password(pw text) returns void
-//     language sql security definer set search_path = public as $$
+//     language sql security definer set search_path = public, extensions as $$
 //     insert into admin_secret (id, hash) values (1, crypt(pw, gen_salt('bf')))
 //     on conflict (id) do update set hash = excluded.hash;
 //   $$;
@@ -27,7 +27,7 @@
 //   select set_admin_password('change-me');   -- <- your /admin password (re-run to change it)
 //
 //   create or replace function admin_events(pw text, days int default 30, max_rows int default 20000)
-//     returns setof events language plpgsql security definer set search_path = public as $$
+//     returns setof events language plpgsql security definer set search_path = public, extensions as $$
 //   begin
 //     if not exists (select 1 from admin_secret where hash = crypt(pw, hash)) then
 //       perform pg_sleep(1); raise exception 'wrong password';
